@@ -1,0 +1,252 @@
+<!DOCTYPE html>
+<html lang="de">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Silbenwürfel 3D</title>
+<style>
+:root{
+  --bg1:#edf8ff;
+  --bg2:#f7f0ff;
+  --blue:#b9e3ff;
+  --blue-side:#a9d8f7;
+  --pink:#ffcde4;
+  --pink-side:#f3b9d4;
+  --yellow1:#fff1a8;
+  --yellow2:#ffe276;
+  --ink:#111;
+}
+*{box-sizing:border-box}
+body{
+  margin:0;
+  min-height:100vh;
+  display:flex;
+  align-items:center;
+  justify-content:center;
+  font-family:"Trebuchet MS","Segoe UI",Arial,sans-serif;
+  background:linear-gradient(135deg,var(--bg1),var(--bg2));
+}
+.game{
+  width:min(900px,94vw);
+  padding:34px 28px 30px;
+  border-radius:32px;
+  background:rgba(255,255,255,.88);
+  box-shadow:0 20px 50px rgba(69,79,115,.14);
+}
+.dice-row{
+  display:flex;
+  justify-content:center;
+  align-items:center;
+  gap:78px;
+  margin-bottom:30px;
+}
+.scene{
+  width:190px;
+  height:190px;
+  perspective:1000px;
+  flex:0 0 190px;
+}
+.cube{
+  --half:95px;
+  position:relative;
+  width:100%;
+  height:100%;
+  transform-style:preserve-3d;
+  transform:rotateX(0deg) rotateY(0deg);
+}
+.face{
+  position:absolute;
+  inset:0;
+  border-radius:26px;
+  border:4px solid rgba(255,255,255,.96);
+  display:flex;
+  align-items:center;
+  justify-content:center;
+  font-size:82px;
+  font-weight:900;
+  line-height:1;
+  color:var(--ink);
+  backface-visibility:hidden;
+  box-shadow:inset 0 0 0 2px rgba(0,0,0,.02);
+  user-select:none;
+}
+.blue .front{background:var(--blue)}
+.blue .back,.blue .right,.blue .left,.blue .top,.blue .bottom{background:var(--blue-side)}
+.pink .front{background:var(--pink)}
+.pink .back,.pink .right,.pink .left,.pink .top,.pink .bottom{background:var(--pink-side)}
+
+.front {transform:rotateY(0deg) translateZ(var(--half))}
+.back {transform:rotateY(180deg) translateZ(var(--half))}
+.right{transform:rotateY(90deg) translateZ(var(--half))}
+.left{transform:rotateY(-90deg) translateZ(var(--half))}
+.top{transform:rotateX(90deg) translateZ(var(--half))}
+.bottom{transform:rotateX(-90deg) translateZ(var(--half))}
+
+.controls{
+  display:flex;
+  justify-content:center;
+}
+button{
+  border:0;
+  border-radius:20px;
+  padding:16px 38px;
+  min-width:250px;
+  font:900 29px/1 "Trebuchet MS","Segoe UI",Arial,sans-serif;
+  color:#4e431d;
+  background:linear-gradient(180deg,var(--yellow1),var(--yellow2));
+  box-shadow:0 10px 24px rgba(164,133,45,.22);
+  cursor:pointer;
+  transition:transform .14s ease;
+}
+button:hover{transform:translateY(-2px)}
+button:active{transform:translateY(1px) scale(.98)}
+button:disabled{cursor:default;opacity:.82}
+
+@media(max-width:680px){
+  .game{padding:26px 14px 24px}
+  .dice-row{gap:34px}
+  .scene{
+    width:138px;
+    height:138px;
+    flex-basis:138px;
+  }
+  .cube{--half:69px}
+  .face{
+    border-radius:20px;
+    font-size:58px;
+  }
+  button{
+    min-width:220px;
+    font-size:24px;
+    padding:14px 28px;
+  }
+}
+</style>
+</head>
+<body>
+<main class="game">
+  <div class="dice-row">
+    <div class="scene">
+      <div class="cube blue" id="cube1">
+        <div class="face front">m</div>
+        <div class="face back">p</div>
+        <div class="face right">l</div>
+        <div class="face left">n</div>
+        <div class="face top">h</div>
+        <div class="face bottom">a</div>
+      </div>
+    </div>
+
+    <div class="scene">
+      <div class="cube pink" id="cube2">
+        <div class="face front">a</div>
+        <div class="face back">e</div>
+        <div class="face right">i</div>
+        <div class="face left">o</div>
+        <div class="face top">ei</div>
+        <div class="face bottom">n</div>
+      </div>
+    </div>
+  </div>
+
+  <div class="controls">
+    <button id="rollBtn" onclick="rollAll()">🎲 Würfeln!</button>
+  </div>
+</main>
+
+<script>
+const cv = [
+  ["m","a"], ["m","e"], ["m","i"], ["m","o"],
+  ["p","a"], ["p","e"], ["p","i"], ["p","o"],
+  ["l","a"], ["l","e"], ["l","i"], ["l","o"],
+  ["n","a"], ["n","e"], ["n","i"], ["n","o"],
+  ["h","a"], ["h","e"], ["h","i"], ["h","o"],
+  ["m","ei"], ["l","ei"], ["n","ei"], ["h","ei"], ["p","ei"]
+];
+
+const vc = [
+  ["a","m"], ["a","n"], ["a","l"], ["a","p"],
+  ["e","m"], ["e","n"], ["e","l"], ["e","p"],
+  ["i","m"], ["i","n"], ["i","l"], ["i","p"],
+  ["o","m"], ["o","n"], ["o","l"], ["o","p"],
+  ["ei","n"]
+];
+
+const bank = [...cv, ...vc];
+let current = ["m","a"];
+let rolling = false;
+
+function nextPair(){
+  let p;
+  do{
+    p = bank[Math.floor(Math.random()*bank.length)];
+  }while(p[0]===current[0] && p[1]===current[1]);
+  return p;
+}
+
+function randomFrom(arr){
+  return arr[Math.floor(Math.random()*arr.length)];
+}
+
+function fillFaces(cube, frontValue, pool){
+  const faces = ["front","back","right","left","top","bottom"];
+  cube.querySelector(".front").textContent = frontValue;
+  faces.slice(1).forEach(name=>{
+    cube.querySelector("." + name).textContent = randomFrom(pool);
+  });
+}
+
+function spinCube(cube, reverse=false){
+  const dir = reverse ? -1 : 1;
+
+  // Настоящее 3D-вращение, но конец всегда точно 0° / 0°.
+  return cube.animate([
+    { transform:"rotateX(0deg) rotateY(0deg) rotateZ(0deg) translateY(0)" },
+    { transform:`rotateX(${dir*135}deg) rotateY(${dir*110}deg) rotateZ(${dir*18}deg) translateY(-16px)`, offset:.16 },
+    { transform:`rotateX(${dir*330}deg) rotateY(${dir*290}deg) rotateZ(${dir*-14}deg) translateY(-5px)`, offset:.34 },
+    { transform:`rotateX(${dir*570}deg) rotateY(${dir*510}deg) rotateZ(${dir*14}deg) translateY(-20px)`, offset:.55 },
+    { transform:`rotateX(${dir*810}deg) rotateY(${dir*760}deg) rotateZ(${dir*-8}deg) translateY(-6px)`, offset:.75 },
+    { transform:`rotateX(${dir*1040}deg) rotateY(${dir*1010}deg) rotateZ(${dir*5}deg) translateY(-10px)`, offset:.88 },
+    { transform:`rotateX(${dir*1080}deg) rotateY(${dir*1080}deg) rotateZ(0deg) translateY(0)` }
+  ],{
+    duration:1100,
+    easing:"cubic-bezier(.22,.72,.18,1)",
+    fill:"none"
+  });
+}
+
+async function rollAll(){
+  if(rolling) return;
+  rolling = true;
+  const btn = document.getElementById("rollBtn");
+  btn.disabled = true;
+
+  current = nextPair();
+
+  const cube1 = document.getElementById("cube1");
+  const cube2 = document.getElementById("cube2");
+
+  const pool1 = [...new Set(bank.map(x=>x[0]))];
+  const pool2 = [...new Set(bank.map(x=>x[1]))];
+
+  // Новая комбинация уже ставится на передние грани,
+  // остальные стороны нужны только для эффекта настоящего кубика.
+  fillFaces(cube1, current[0], pool1);
+  fillFaces(cube2, current[1], pool2);
+
+  const a1 = spinCube(cube1, false);
+  await new Promise(r=>setTimeout(r,60));
+  const a2 = spinCube(cube2, true);
+
+  await Promise.all([a1.finished, a2.finished]);
+
+  // После броска оба кубика строго фронтально.
+  cube1.style.transform = "rotateX(0deg) rotateY(0deg) rotateZ(0deg)";
+  cube2.style.transform = "rotateX(0deg) rotateY(0deg) rotateZ(0deg)";
+
+  btn.disabled = false;
+  rolling = false;
+}
+</script>
+</body>
+</html>
